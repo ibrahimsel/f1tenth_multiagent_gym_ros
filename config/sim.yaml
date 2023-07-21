@@ -22,7 +22,7 @@
 
 bridge:
   ros__parameters:
-    # topics and namespaces
+    # topics and namespaces (Absolutely not recommended to change them)
     ego_namespace: 'car'
     ego_scan_topic: 'scan'
     ego_odom_topic: 'odom'
@@ -37,9 +37,9 @@ bridge:
     scan_beams: 1080
 
     # map parameters
-    map_path: '/home/sel/ros2-autonomous-algorithms/src/maps/f1tenth_racetracks/Spielberg/Spielberg_map'
+    map_path: 'multiagent_sim_ws/src/f1tenth_gym_ros/maps/levine' # full path to map yaml file without the extension
     map_img_ext: '.png'
 
-    # opponent parameters
+    # number of agents to spawn in simulation (can't be greater than 16)
     num_agent: 4
 
