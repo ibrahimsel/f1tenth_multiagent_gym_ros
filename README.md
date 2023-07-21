@@ -76,7 +76,7 @@ An rviz window should pop up showing the simulation either on your host system o
 You can then run another node by creating another bash session
 
 # Configuring the simulation
-- The configuration file for the simulation is at `$HOME/multiagent_sim_ws/src/f1tenth_gym_ros/config/sim.yaml`.
+- The configuration file for the simulation is at `$HOME/multiagent_sim_ws/src/f1tenth_multiagent_gym_ros/config/sim.yaml`.
 - Topic names and namespaces can be configured but is recommended to leave unchanged.
 - The map can be changed via the `map_path` parameter. You'll have to use the full path to the map file in the container. The map follows the ROS convention. It is assumed that the image file and the `yaml` file for the map are in the same directory with the same name
 - The `num_agent` parameter can be changed arbitrarily.
