@@ -14,6 +14,12 @@ def generate_launch_description():
 
     config_dict = yaml.safe_load(open(config, "r"))
     num_agents = config_dict["bridge"]["ros__parameters"]["num_agent"]
+    if num_agents < 1:
+        num_agents = 1
+    elif num_agents > 16:
+        num_agents = 16
+    print(f"Starting with {num_agents} agents.")
+
     robot_publishers = []
 
     bridge_node = Node(
@@ -65,6 +71,7 @@ def generate_launch_description():
     )
 
     car_colors = ["black", "green", "red", "blue"]
+
     for i in range(num_agents):
         ego_robot_publisher_car = Node(
             package="robot_state_publisher",
@@ -98,5 +105,4 @@ def generate_launch_description():
     ld.add_action(map_server_node)
     for i in robot_publishers:
         ld.add_action(i)
-
     return ld
