@@ -1,8 +1,6 @@
 # F1TENTH gym environment ROS2 communication bridge
 This is a ROS communication bridge with multiagent support (up to 16) for the F1TENTH gym environment that turns it into a simulation in ROS2. Currently, if more than 4 agents are spawned, performance issues occur.
 
-
-
 # Installation
 
 **Supported System:**
@@ -83,4 +81,6 @@ You can then run another node by creating another bash session
 - The map can be changed via the `map_path` parameter. You'll have to use the full path to the map file in the container. The map follows the ROS convention. It is assumed that the image file and the `yaml` file for the map are in the same directory with the same name
 - The `num_agent` parameter can be changed arbitrarily.
 The entire directory of the repo is mounted to a workspace `/multiagent_sim_ws/src` as a package. After changing the configuration, run `colcon build` again in the container workspace to make sure the changes are reflected.
+- In Rviz, you need to add a RobotModel and a LaserScan for each agent. For instance for 4th agent, add a RobotModel and set the description topic to `/ego_robot_description_car4` and add a LaserScan and set the description topic to `/scan4`. 
 
+# Troubleshooting
