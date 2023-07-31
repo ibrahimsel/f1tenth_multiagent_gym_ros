@@ -2,18 +2,17 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PoseWithCovarianceStamped
-from geometry_msgs.msg import Twist
 from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Transform
-from geometry_msgs.msg import Quaternion
 from ackermann_msgs.msg import AckermannDriveStamped
 from tf2_ros import TransformBroadcaster
 
 import gym
 import numpy as np
 from transforms3d import euler
+from interactive_markers.interactive_marker_server import InteractiveMarkerServer
+from visualization_msgs.msg import InteractiveMarker, InteractiveMarkerControl, Marker
 
 
 class GymBridge(Node):
@@ -59,7 +58,7 @@ class GymBridge(Node):
             self.pose_reset_arr[i][0] += i
             # self.pose_reset_arr[i][1] += i
             # self.pose_reset_arr[i][2] -= 2.0
-        
+
         self.obs, _, self.done, _ = self.env.reset(self.pose_reset_arr)
 
         # sim physical step timer
@@ -70,7 +69,7 @@ class GymBridge(Node):
         # transform broadcaster
         self.br = TransformBroadcaster(self)
 
-        # topics need to be seperate for each car
+        # topics need to be separate for each car
         self.scan_topics = [f"{ego_scan_topic}{i + 1}" for i in range(self.num_agents)]
         self.drive_topics = [
             f"{ego_drive_topic}{i + 1}" for i in range(self.num_agents)
@@ -98,29 +97,58 @@ class GymBridge(Node):
             self.drive_subscribers.append(ego_drive_sub)
         self.ego_drive_published = False
 
+        # Initialize InteractiveMarkerServer
+        self.server = InteractiveMarkerServer(node=self, namespace="/positions")
+        self.clicked_car = 0  # Initialize the clicked car variable
 
-        # TODO: Provide interactive markers to reset each agents pose individually
-        self.ego_reset_sub = self.create_subscription(
-            PoseWithCovarianceStamped, "/initialpose", self.ego_reset_callback, 10
+        for i in range(self.num_agents):
+            marker = InteractiveMarker()
+            marker.header.frame_id = "map"
+            marker.name = f"car_{i + 1}_marker"
+            marker.description = f"Car {i + 1}"
+            # Create a control that displays a box marker
+            box_marker = Marker()
+            box_marker.type = Marker.CUBE
+            box_marker.pose.position.x = -5.0 - i
+            box_marker.pose.position.y = -5.0 
+            box_marker.pose.position.z = 0.2 
+            box_marker.scale.x = 0.5
+            box_marker.scale.y = 0.5
+            box_marker.scale.z = 0.2
+            box_marker.color.r = 0.8
+            box_marker.color.g = 0.3
+            box_marker.color.b = 0.2
+            box_marker.color.a = 1.0
+
+            control = InteractiveMarkerControl()
+            control.markers.append(box_marker)
+            control.interaction_mode = InteractiveMarkerControl.BUTTON
+            control.always_visible = True
+            marker.controls.append(control)
+
+            self.server.insert(marker=marker, feedback_callback=self.marker_click_callback)
+
+        self.server.applyChanges()
+
+        self.pose_reset_sub = self.create_subscription(
+            PoseWithCovarianceStamped, "/initialpose", self.pose_reset_callback, 10
         )
-        
 
-    # FIXME: Each car needs seperate drive topic
     def drive_callback(self, drive_msg):
-        car_number = int(drive_msg.header.frame_id.split('car')[1].split('/')[0]) - 1
+        car_number = int(drive_msg.header.frame_id.split("car")[1].split("/")[0]) - 1
         self.drive_msgs[car_number][0] = drive_msg.drive.steering_angle
         self.drive_msgs[car_number][1] = drive_msg.drive.speed
         self.ego_drive_published = True
 
     def drive_timer_callback(self):
         if self.ego_drive_published:
-            self.obs, _, self.done, _ = self.env.step(self.drive_msgs)  # This is where the simulation keeps updating itself
+            self.obs, _, self.done, _ = self.env.step(self.drive_msgs)
 
     def timer_callback(self):
         for i in range(self.num_agents):
             ego_namespace = self.ego_namespace + str(i + 1)
             ts = self.get_clock().now().to_msg()
-            # pub scans
+            # publish scans
             scan = LaserScan()
             scan.header.stamp = ts
             scan.header.frame_id = ego_namespace + "/laser"
@@ -132,22 +160,38 @@ class GymBridge(Node):
             scan.ranges = list(self.obs["scans"][i])
             self.scan_publishers[i].publish(scan)
 
-            # pub tf
+            # publish transforms and odom
             self._publish_odom(ts)
             self._publish_transforms(ts)
             self._publish_laser_transforms(ts)
             self._publish_wheel_transforms(ts)
 
-    # TODO: think of a better way to reset agent poses FIXME: (or not)
-    def ego_reset_callback(self, pose_msg):
+    def marker_click_callback(self, feedback):
+        # Extract the car number from the marker name
+        self.clicked_car = int(feedback.marker_name.split("_")[1]) - 1
+        self.get_logger().info("Clicked car: " + str(self.clicked_car + 1))
+
+    def pose_reset_callback(self, pose_msg):
         rx = pose_msg.pose.pose.position.x
         ry = pose_msg.pose.pose.position.y
         rqx = pose_msg.pose.pose.orientation.x
         rqy = pose_msg.pose.pose.orientation.y
         rqz = pose_msg.pose.pose.orientation.z
         rqw = pose_msg.pose.pose.orientation.w
-        _, _, rtheta = euler.quat2euler([rqw, rqx, rqy, rqz], axes="sxyz")
+        _, _, rtheta = euler.quat2euler([rqw, rqx, rqy, rqz], axes="rxyz")
 
+        # FIXME: Each time an agent's pose is updated, all the agents stop for a moment
+        # Keep all other agents in the same place
+        for i in range(self.num_agents):
+            self.pose_reset_arr[i][0] = self.obs["poses_x"][i]
+            self.pose_reset_arr[i][1] = self.obs["poses_y"][i]
+            self.pose_reset_arr[i][2] = self.obs["poses_theta"][i]
+            
+        # Update chosen agent's pose
+        self.pose_reset_arr[self.clicked_car][0] = rx
+        self.pose_reset_arr[self.clicked_car][1] = ry
+        self.pose_reset_arr[self.clicked_car][2] = rtheta
+        
         self.obs, _, self.done, _ = self.env.reset(np.array(self.pose_reset_arr))
 
     def _publish_odom(self, ts):
@@ -169,19 +213,18 @@ class GymBridge(Node):
             ego_odom.twist.twist.angular.z = self.obs["ang_vels_z"][i]
             self.odom_publishers[i].publish(ego_odom)
 
-
     def _publish_transforms(self, ts):
         for i in range(self.num_agents):
             ego_namespace = self.ego_namespace + str(i + 1)
             ego_t = Transform()
             ego_t.translation.x = self.obs["poses_x"][i]
-            ego_t.translation.y = self.obs["poses_y"][i] 
+            ego_t.translation.y = self.obs["poses_y"][i]
             ego_t.translation.z = 0.0
             ego_quat = euler.euler2quat(0.0, 0.0, self.obs["poses_theta"][i], axes="sxyz")
             ego_t.rotation.x = ego_quat[1]
             ego_t.rotation.y = ego_quat[2]
             ego_t.rotation.z = ego_quat[3]
-            ego_t.rotation.w = ego_quat[0]  
+            ego_t.rotation.w = ego_quat[0]
             ego_ts = TransformStamped()
             ego_ts.transform = ego_t
             ego_ts.header.stamp = ts
@@ -224,7 +267,13 @@ class GymBridge(Node):
 def main(args=None):
     rclpy.init(args=args)
     gym_bridge = GymBridge()
-    rclpy.spin(gym_bridge)
+
+    try:
+        rclpy.spin(gym_bridge)
+    except KeyboardInterrupt:
+        print("Interrupt signal detected... Killing node")
+    gym_bridge.server.clear()
+    rclpy.shutdown()
 
 
 if __name__ == "__main__":
