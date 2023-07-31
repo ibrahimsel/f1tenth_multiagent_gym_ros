@@ -89,7 +89,6 @@ def generate_launch_description():
                             ),
                             f" car:=car{i + 1}",
                             f" car_color:={car_colors[i % 4]}",
-                            " size_x:=0.4",
                         ]
                     )
                 }

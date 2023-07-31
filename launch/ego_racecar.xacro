@@ -15,7 +15,7 @@
   <xacro:property name="laser_radius" value="0.026" />
   <xacro:arg name="car" default="ego_racecar" />
   <xacro:arg name="car_color" default="red" />
-  <xacro:arg name="size_x" default="1" />
+  <!-- <xacro:arg name="size_x" default="1" /> -->
 
   <material name="black">
     <color rgba="0.2 0.2 0.2 1."/>
@@ -37,7 +37,7 @@
     <visual>
       <origin xyz="${wheelbase/2} 0 ${ground_offset+height/2}"/>
       <geometry>
-        <box size="$(arg size_x) ${width} ${height}"/>
+        <box size="${wheelbase} ${width} ${height}"/>
       </geometry>
       <material name="$(arg car_color)"/>
     </visual>
