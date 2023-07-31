@@ -56,9 +56,9 @@ class GymBridge(Node):
 
         self.pose_reset_arr = np.zeros((self.num_agents, 3))
         for i in range(len(self.pose_reset_arr)):
-            # self.pose_reset_arr[i][0] += i
+            self.pose_reset_arr[i][0] += i
             # self.pose_reset_arr[i][1] += i
-            self.pose_reset_arr[i][2] -= 2.0
+            # self.pose_reset_arr[i][2] -= 2.0
         
         self.obs, _, self.done, _ = self.env.reset(self.pose_reset_arr)
 
@@ -86,42 +86,35 @@ class GymBridge(Node):
         self.drive_subscribers = []
         self.drive_msgs = np.zeros(
             (self.num_agents, 2)
-        )  # 2 for speed and steering angle
-
+        )  # 2 for steering angle and speed
         for i in range(self.num_agents):
             ego_scan_pub = self.create_publisher(LaserScan, self.scan_topics[i], 10)
             ego_odom_pub = self.create_publisher(Odometry, self.odom_topics[i], 10)
-
-            # TODO: only /drive topic is needed
-            if i == 0:
-                ego_drive_sub = self.create_subscription(
-                    AckermannDriveStamped, ego_drive_topic, self.drive_callback, 10
-                )
-            else:
-                ego_drive_sub = self.create_subscription(
-                    AckermannDriveStamped, self.drive_topics[i], self.drive_callback, 10
-                )
+            ego_drive_sub = self.create_subscription(
+                AckermannDriveStamped, self.drive_topics[i], self.drive_callback, 10
+            )
             self.scan_publishers.append(ego_scan_pub)
             self.odom_publishers.append(ego_odom_pub)
             self.drive_subscribers.append(ego_drive_sub)
         self.ego_drive_published = False
 
+
+        # TODO: Provide interactive markers to reset each agents pose individually
         self.ego_reset_sub = self.create_subscription(
             PoseWithCovarianceStamped, "/initialpose", self.ego_reset_callback, 10
         )
+        
 
+    # FIXME: Each car needs seperate drive topic
     def drive_callback(self, drive_msg):
-        for i in range(self.num_agents):
-            current_car = "car" + str(i + 1)
-            if drive_msg.header.frame_id == current_car + "/base_link":
-                self.drive_msgs[i][1] = drive_msg.drive.speed
-                self.drive_msgs[i][0] = drive_msg.drive.steering_angle
-
+        car_number = int(drive_msg.header.frame_id.split('car')[1].split('/')[0]) - 1
+        self.drive_msgs[car_number][0] = drive_msg.drive.steering_angle
+        self.drive_msgs[car_number][1] = drive_msg.drive.speed
         self.ego_drive_published = True
 
     def drive_timer_callback(self):
         if self.ego_drive_published:
-            self.obs, _, self.done, _ = self.env.step(self.drive_msgs)
+            self.obs, _, self.done, _ = self.env.step(self.drive_msgs)  # This is where the simulation keeps updating itself
 
     def timer_callback(self):
         for i in range(self.num_agents):
