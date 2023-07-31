@@ -1,6 +1,6 @@
-from setuptools import setup
 import os
 from glob import glob
+from setuptools import setup
 
 package_name = 'f1tenth_gym_ros'
 
@@ -19,9 +19,9 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='Billy Zheng',
-    maintainer_email='billyzheng.bz@gmail.com',
-    description='Bridge for using f1tenth_gym in ROS2',
+    maintainer='İbrahim Sel',
+    maintainer_email='ibrahim.sel@eteration.com',
+    description='Bridge with multiagent support for using f1tenth_gym in ROS2',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
