@@ -51,14 +51,14 @@ Above command is going to give you a .pdf file in the directory you've just exec
 
 ## 2. Topics subscribed by the simulation
 
- `/drive`: The drive topic of all agents (for now) via `AckermannDriveStamped` messages
-> Currently, you need to send all of your drive commands for each agent to the `/drive` topic. For sending seperate drive commands to agents, you need to send an `AckermannDriveStamped` message with a `frame_id` of `car{i}/base_link` where {i} is the number of the specific agent you want to choose. 
+ `/drive{i}`: The topic to send `AckermannDriveStamped` messages where {i} is the agent number. 
+> IMPORTANT: For sending seperate drive commands to agents, you need to send an `AckermannDriveStamped` message with a `frame_id` of `car{i}/base_link` to the `/drive{i}` topic where {i} is the number of the specific agent you want to choose. 
 
-An example drive message you could send to `/drive` would look like this: 
+An example drive message you could send to the 4th agent would look like this: 
 ```bash
-ros2 topic pub /drive ackermann_msgs/msg/AckermannDriveStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'car1/base_link'}, drive: {steering_angle: 1.0, steering_angle_velocity: 1.0, speed: 1.0, acceleration: 0.0, jerk: 0.0}}"
+$ ros2 topic pub /drive4 ackermann_msgs/msg/AckermannDriveStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'car4/base_link'}, drive: {steering_angle: 1.0, steering_angle_velocity: 1.0, speed: 1.0, acceleration: 0.0, jerk: 0.0}}"
 ```
-Above command sends an AckermannDriveStamped message to the first agent.
+Above command sends an AckermannDriveStamped message to the first agent. Notice the topic name and frame_id is unique for each agent
 
 `/initalpose`: This is the topic for resetting all of the agents' poses to  their initial state via RViz's 2D Pose Estimate tool. There will be a cleverer way to reset agent poses in the future. Do **NOT** publish directly to this topic unless you know what you're doing.
 
